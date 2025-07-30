@@ -1,23 +1,25 @@
-# Берем базовый образ Go
-FROM golang:1.18-alpine AS builder
-# Устанавливаем зависимости (если нужны)
-RUN apk add --no-cache git
-# Рабочая директория
+# use official Golang image
+FROM golang:1.23
+
+# set working directory
 WORKDIR /app
-# Копируем go.mod и go.sum для загрузки зависимостей
-COPY go.mod go.sum ./
-# Скачиваем зависимости
-RUN go mod download
-# Копируем исходный код
+
+# Copy the source code
 COPY . .
-# Собираем приложение
-RUN CGO_ENABLED=0 GOOS=linux go build -o fileservice .
-# Создаем финальный образ
-FROM alpine:latest
-WORKDIR /root/
-# Копируем бинарник из builder
-COPY --from=builder /app/fileservice .
-# Экспонируем порт
-EXPOSE 8080
-# Команда для запуска
-CMD ["./fileservice"]
+
+RUN apk add --no-cache curl \
+ && curl -L https://github.com/golang-migrate/migrate/releases/download/v4.16.2/migrate.linux-amd64.tar.gz | tar xvz \
+ && mv migrate /usr/bin/migrate \
+ && chmod +x /usr/bin/migrate
+
+# Download and install the dependencies
+RUN go get -d -v ./...
+
+# Build the Go app
+RUN go build -o api .
+
+#EXPOSE the port
+EXPOSE 8000
+
+# Run the executable
+CMD ["./api"]

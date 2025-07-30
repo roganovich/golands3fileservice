@@ -1,0 +1,235 @@
+definitions:
+  models.CreateUserRequest:
+    properties:
+      email:
+        type: string
+      id:
+        type: integer
+      name:
+        maxLength: 128
+        minLength: 3
+        type: string
+      password:
+        maxLength: 128
+        minLength: 4
+        type: string
+      phone:
+        maxLength: 20
+        minLength: 6
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
+  models.UpdateUserRequest:
+    properties:
+      email:
+        type: string
+      id:
+        type: integer
+      name:
+        maxLength: 128
+        minLength: 3
+        type: string
+      password:
+        maxLength: 128
+        minLength: 4
+        type: string
+      phone:
+        maxLength: 20
+        minLength: 6
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
+  models.User:
+    properties:
+      city:
+        description: Город
+        type: string
+      created_at:
+        description: Дата создания
+        type: string
+      deleted_at:
+        description: Дата удаления
+        type: string
+      email:
+        description: Email
+        type: string
+      id:
+        type: integer
+      logo:
+        description: Логотип
+        type: string
+      media:
+        description: Медиа
+        type: string
+      name:
+        description: ФИО
+        type: string
+      password:
+        description: Пароль
+        type: string
+      phone:
+        description: Телефон
+        type: string
+      status:
+        description: Статус
+        type: integer
+      updated_at:
+        description: Дата последнего обновления
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /api/auth:
+    get:
+      description: Получение информации о пользователе по идентификатору
+      parameters:
+      - description: ID пользователя
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.User'
+        "400":
+          description: Bad Request
+          schema:
+            type: Bad
+        "404":
+          description: Not Found
+          schema:
+            type: Not
+      summary: Возвращает информацию о пользователе по ID
+      tags:
+      - Пользователи
+    post:
+      description: Создание нового пользователя
+      parameters:
+      - description: Данные для создания пользователя
+        in: body
+        name: createUser
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateUserRequest'
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: string
+        "422":
+          description: Unprocessable Entity
+          schema:
+            type: Unprocessable
+      summary: Создание нового пользователя
+      tags:
+      - Пользователи
+  /api/users:
+    get:
+      consumes:
+      - application/json
+      description: Получение списка всех пользователей
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.User'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            type: Bad
+        "500":
+          description: Internal Server Error
+          schema:
+            type: Internal
+      summary: Возвращает список всех пользователей
+      tags:
+      - Пользователи
+    put:
+      description: Обновление существующего пользователя
+      parameters:
+      - description: Данные для обновления пользователя
+        in: body
+        name: updateUser
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateUserRequest'
+      - description: ID пользователя
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+          schema:
+            type: "No"
+        "404":
+          description: Not Found
+          schema:
+            type: Not
+        "422":
+          description: Unprocessable Entity
+          schema:
+            type: Unprocessable
+      summary: Обновление существующего пользователя
+      tags:
+      - Пользователи
+  /api/users/{id}:
+    delete:
+      description: Удаление пользователя по идентификатору
+      parameters:
+      - description: ID пользователя
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+          schema:
+            type: "No"
+        "404":
+          description: Not Found
+          schema:
+            type: Not
+      summary: Удаляет пользователя по ID
+      tags:
+      - Пользователи
+    get:
+      description: Получение информации о пользователе по идентификатору
+      parameters:
+      - description: ID пользователя
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.User'
+        "400":
+          description: Bad Request
+          schema:
+            type: Bad
+        "404":
+          description: Not Found
+          schema:
+            type: Not
+      summary: Возвращает информацию о пользователе по ID
+      tags:
+      - Пользователи
+swagger: "2.0"

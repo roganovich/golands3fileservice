@@ -67,11 +67,11 @@ docker images
 
 #### Создать файл миграции
 ```bash
-migrate create -ext sql -dir db/migration -seq create_user
+migrate create -ext sql -dir db/migration -seq create_users
 ```
 #### Выполнить
 ```bash
-migrate -path db/migration -database "postgresql://postgres:postgres@localhost:5432/postgres?sslmode=disable" -verbose up
+migrate -path db/migration -database "postgresql://s3_postgres:s3_postgres@localhost:5432/s3_postgres?sslmode=disable" -verbose up
 ```
 
 ### Документация OpenAPI
