@@ -49,5 +49,8 @@ func main() {
 	router.HandleFunc("/api/auth/login", handlers.Login()).Methods("POST", "OPTIONS")
 	router.HandleFunc("/api/auth/refresh", handlers.AuthMiddleware(handlers.Refresh())).Methods("POST", "OPTIONS")
 
+	// Media
+	router.HandleFunc("/api/files/upload", handlers.AuthMiddleware(handlers.Upload())).Methods("POST", "OPTIONS")
+
 	log.Fatal(http.ListenAndServe(":8000", handlers.JsonContentTypeMiddleware(router)))
 }
