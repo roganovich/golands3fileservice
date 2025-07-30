@@ -1,0 +1,8 @@
+.idea
+*.bak
+*.mod
+*.sum
+*.exe
+bin
+.env.local
+pgdata

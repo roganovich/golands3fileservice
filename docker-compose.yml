@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  s3_postgres:
+    container_name: s3_postgres
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: s3_postgres
+      POSTGRES_PASSWORD: s3_postgres
+      POSTGRES_DB: s3_postgres
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data/pgdata
+    networks:
+      - app-network
+  s3_minio:
+    container_name: s3_minio
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - miniodata:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    networks:
+      - app-network
+
+  s3_app:
+    container_name: s3_app
+    build: .
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_USE_SSL: "false"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - s3_postgres
+      - s3_minio
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  pgdata:
+  miniodata:
