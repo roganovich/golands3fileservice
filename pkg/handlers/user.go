@@ -165,7 +165,7 @@ func GetUser() http.HandlerFunc {
 // @Success 200 {object} models.User
 // @Failure 400 Bad Request
 // @Failure 404 Not Found
-// @Router /api/auth [get]
+// @Router /api/auth/info [get]
 func InfoUser() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodOptions {
@@ -183,6 +183,16 @@ func InfoUser() http.HandlerFunc {
 	}
 }
 
+// Документация для метода Login
+// @Summary Авторизация
+// @Description Авторизация пользователя
+// @Tags Пользователи
+// @Param createUser body models.LoginUserRequest true "Данные для авторизации пользователя"
+// @Consumes application/json
+// @Produces application/json
+// @Success 201 {object} string
+// @Failure 422 Unprocessable Entity
+// @Router /api/auth/login [post]
 func Login() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodOptions {
@@ -231,6 +241,15 @@ func Login() http.HandlerFunc {
 	}
 }
 
+// Документация для метода Refresh
+// @Summary Обновить токен
+// @Description Обновить токен
+// @Tags Пользователи
+// @Consumes application/json
+// @Produces application/json
+// @Success 201 {object} string
+// @Failure 422 Unprocessable Entity
+// @Router /api/auth/refresh [post]
 func Refresh() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodOptions {
@@ -269,7 +288,7 @@ func Refresh() http.HandlerFunc {
 // @Produces application/json
 // @Success 201 {object} string
 // @Failure 422 Unprocessable Entity
-// @Router /api/auth [post]
+// @Router /api/auth/create [post]
 func CreateUser() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodOptions {
@@ -354,7 +373,7 @@ func CreateUser() http.HandlerFunc {
 // @Success 204 No Content
 // @Failure 422 Unprocessable Entity
 // @Failure 404 Not Found
-// @Router /api/users [put]
+// @Router /api/auth/update [put]
 func UpdateUser() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodOptions {
