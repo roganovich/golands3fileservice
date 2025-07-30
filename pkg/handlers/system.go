@@ -141,14 +141,6 @@ func registerCustomErrorMessages() {
 		t, _ := ut.T("email", fe.Field())
 		return t
 	})
-
-	// Кастомные сообщения для пользовательских тегов
-	validate.RegisterTranslation("phone", trans, func(ut ut.Translator) error {
-		return ut.Add("phone", "{0} должен быть корректным номером телефона", true)
-	}, func(ut ut.Translator, fe validator.FieldError) string {
-		t, _ := ut.T("phone", fe.Field())
-		return t
-	})
 }
 
 func getIntParam(params url.Values, key string, defaultValue int) int {

@@ -1,3 +1,4 @@
+basePath: /api
 definitions:
   models.CreateUserRequest:
     properties:
@@ -83,8 +84,12 @@ definitions:
         description: Дата последнего обновления
         type: string
     type: object
+host: localhost:8080
 info:
   contact: {}
+  description: Простое приложение на GO, предназначенное для работы с S3 сервером.
+  title: Golang S3 Fileservice API
+  version: "1.0"
 paths:
   /api/auth:
     get:

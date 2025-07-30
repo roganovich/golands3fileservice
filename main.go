@@ -13,6 +13,11 @@ import (
 
 )
 
+// @title Golang S3 Fileservice API
+// @description Простое приложение на GO, предназначенное для работы с S3 сервером.
+// @version 1.0
+// @host localhost:8080
+// @BasePath /api
 func main() {
 	// Загружаем .env файл
 	err := godotenv.Load(".env.local")
@@ -32,6 +37,17 @@ func main() {
 
 	// Swagger
 	router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
+
+	// Участники
+	router.HandleFunc("/api/users", handlers.AuthAdminMiddleware(handlers.GetUsers())).Methods("GET")
+	router.HandleFunc("/api/users/{id}", handlers.AuthAdminMiddleware(handlers.GetUser())).Methods("GET")
+
+	// Кабинет
+	router.HandleFunc("/api/auth/info", handlers.AuthMiddleware(handlers.InfoUser())).Methods("GET", "OPTIONS")
+	router.HandleFunc("/api/auth/create", handlers.CreateUser()).Methods("POST", "OPTIONS")
+	router.HandleFunc("/api/auth/update", handlers.AuthMiddleware(handlers.UpdateUser())).Methods("PUT", "OPTIONS")
+	router.HandleFunc("/api/auth/login", handlers.Login()).Methods("POST", "OPTIONS")
+	router.HandleFunc("/api/auth/refresh", handlers.AuthMiddleware(handlers.Refresh())).Methods("POST", "OPTIONS")
 
 	log.Fatal(http.ListenAndServe(":8000", handlers.JsonContentTypeMiddleware(router)))
 }

@@ -1,8 +1,13 @@
 {
     "swagger": "2.0",
     "info": {
-        "contact": {}
+        "description": "Простое приложение на GO, предназначенное для работы с S3 сервером.",
+        "title": "Golang S3 Fileservice API",
+        "contact": {},
+        "version": "1.0"
     },
+    "host": "localhost:8080",
+    "basePath": "/api",
     "paths": {
         "/api/auth": {
             "get": {

@@ -67,7 +67,7 @@ docker images
 
 #### Создать файл миграции
 ```bash
-migrate create -ext sql -dir db/migration -seq create_users
+migrate create -ext sql -dir db/migration -seq add_role_to_user
 ```
 #### Выполнить
 ```bash

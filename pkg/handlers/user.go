@@ -30,7 +30,7 @@ import (
 // @Router /api/users [get]
 func GetUsers() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		rows, err := database.DB.Query("SELECT id, name, email, phone, city, logo, media, status, created_at FROM users")
+		rows, err := database.DB.Query("SELECT id, name, email, status, created_at FROM users")
 		if err != nil {
 			log.Println(err)
 		}
@@ -43,10 +43,6 @@ func GetUsers() http.HandlerFunc {
 				&user.ID,
 				&user.Name,
 				&user.Email,
-				&user.Phone,
-				&user.City,
-				&user.Logo,
-				&user.Media,
 				&user.Status,
 				&user.CreatedAt); err != nil {
 				log.Println(err)
@@ -83,7 +79,7 @@ func getUserViewById(paramId int64) (error, models.UserView) {
 
 	err := database.DB.QueryRow(
 		"SELECT " +
-			"u.id, u.name, u.email, u.phone, u.city, u.logo, u.media, u.status, u.created_at, " +
+			"u.id, u.name, u.email, u.status, u.created_at, " +
 			"r.id, r.name " +
 			"FROM users u " +
 			"join roles r on r.id = u.role_id " +
@@ -91,10 +87,6 @@ func getUserViewById(paramId int64) (error, models.UserView) {
 		&userView.ID,
 		&userView.Name,
 		&userView.Email,
-		&userView.Phone,
-		&userView.City,
-		&userView.Logo,
-		&userView.Media,
 		&userView.Status,
 		&userView.CreatedAt,
 		&role.ID,
@@ -111,7 +103,7 @@ func getUserViewByEmail(paramEmail string) (error, models.UserView) {
 
 	err := database.DB.QueryRow(
 		"SELECT " +
-			"u.id, u.name, u.email, u.phone, u.city, u.logo, u.media, u.status, u.created_at, " +
+			"u.id, u.name, u.email, u.status, u.created_at, " +
 			"r.id, r.name " +
 			"FROM users u " +
 			"join roles r on r.id = u.role_id " +
@@ -119,10 +111,6 @@ func getUserViewByEmail(paramEmail string) (error, models.UserView) {
 		&userView.ID,
 		&userView.Name,
 		&userView.Email,
-		&userView.Phone,
-		&userView.City,
-		&userView.Logo,
-		&userView.Media,
 		&userView.Status,
 		&userView.CreatedAt,
 		&role.ID,
@@ -135,11 +123,10 @@ func getUserViewByEmail(paramEmail string) (error, models.UserView) {
 
 func getUserViewByIdByEmail(paramEmail string) (error, models.CreateUserRequest) {
 	var user models.CreateUserRequest
-	err := database.DB.QueryRow("SELECT id, name, email, phone, password FROM users WHERE email = $1", paramEmail).Scan(
+	err := database.DB.QueryRow("SELECT id, name, email, password FROM users WHERE email = $1", paramEmail).Scan(
 		&user.ID,
 		&user.Name,
 		&user.Email,
-		&user.Phone,
 		&user.Password,
 	)
 
@@ -311,7 +298,7 @@ func CreateUser() http.HandlerFunc {
 				// Создаем структуру для ответа с ошибкой
 				errorData := models.ErrorResponse{
 					StatusCode:  http.StatusBadRequest,
-					Message: "Возникла ошибка при регистрации",
+					Message: "Возникла ошибка при регистрации (#vr)",
 					Errors: validationErrors,
 				}
 				// Сериализуем ошибки в JSON
@@ -332,18 +319,17 @@ func CreateUser() http.HandlerFunc {
 			var user models.CreateUserRequest
 			user.Name = userRequest.Name
 			user.Email = userRequest.Email
-			user.Phone = userRequest.Phone
 			user.Password = getHashPassword(userRequest.Password)
 
-			err := database.DB.QueryRow("INSERT INTO users (name, email, phone, password) VALUES ($1, $2, $3, $4) RETURNING id", user.Name, user.Email, user.Phone, user.Password).Scan(&user.ID)
+			err := database.DB.QueryRow("INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id", user.Name, user.Email, user.Password).Scan(&user.ID)
 			if err != nil {
-				http.Error(w, "Возникла ошибка при регистрации", http.StatusBadRequest)
+				http.Error(w, "Возникла ошибка при регистрации (#iu)", http.StatusBadRequest)
 				return
 			}
 
 			tokenString, errorToken := getNewToken(user.Name, user.Email)
 			if errorToken != nil {
-				http.Error(w, "Возникла ошибка при регистрации", http.StatusBadRequest)
+				http.Error(w, "Возникла ошибка при регистрации (#nt)", http.StatusBadRequest)
 				return
 			}
 
@@ -417,13 +403,11 @@ func UpdateUser() http.HandlerFunc {
 			if (userRequest != nil){
 				AUTH.Name = userRequest.Name
 				AUTH.Email = userRequest.Email
-				AUTH.Phone = userRequest.Phone
 				userPassword := getHashPassword(userRequest.Password)
 
-				_, err := database.DB.Exec("UPDATE users SET name = $1, email = $2, phone = $3, password = $4 WHERE id = $5",
+				_, err := database.DB.Exec("UPDATE users SET name = $1, email = $2, password = $3 WHERE id = $4",
 					AUTH.Name,
 					AUTH.Email,
-					AUTH.Phone,
 					userPassword,
 					userRequest.ID)
 
@@ -459,7 +443,7 @@ func DeleteUser() http.HandlerFunc {
 		paramId, _ := strconv.Atoi(vars["id"])
 
 		var user models.User
-		err := database.DB.QueryRow("SELECT * FROM users WHERE id = $1", paramId).Scan(&user.ID, &user.Name, &user.Email, &user.Phone, &user.Status, &user.CreatedAt, &user.UpdatedAt, &user.DeletedAt)
+		err := database.DB.QueryRow("SELECT * FROM users WHERE id = $1", paramId).Scan(&user.ID, &user.Name, &user.Email, &user.Status, &user.CreatedAt, &user.UpdatedAt, &user.DeletedAt)
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -480,28 +464,10 @@ func isUniqueEmail(fl validator.FieldLevel) bool {
 	email := fl.Field().String()
 
 	var checkUser models.CreateUserRequest
-	err := database.DB.QueryRow("SELECT id, name, email, phone, password FROM users WHERE email = $1", email).Scan(
+	err := database.DB.QueryRow("SELECT id, name, email, password FROM users WHERE email = $1", email).Scan(
 		&checkUser.ID,
 		&checkUser.Name,
 		&checkUser.Email,
-		&checkUser.Phone,
-		&checkUser.Password,
-	)
-	if err == sql.ErrNoRows {
-		return true
-	}
-	return false
-}
-
-func isUniquePhone(fl validator.FieldLevel) bool {
-	phone := fl.Field().String()
-
-	var checkUser models.CreateUserRequest
-	err := database.DB.QueryRow("SELECT id, name, email, phone, password FROM users WHERE phone = $1", phone).Scan(
-		&checkUser.ID,
-		&checkUser.Name,
-		&checkUser.Email,
-		&checkUser.Phone,
 		&checkUser.Password,
 	)
 	if err == sql.ErrNoRows {
@@ -523,7 +489,6 @@ func validateCreateUserRequest(r *http.Request) (error, models.CreateUserRequest
 
 	validate := validator.New()
 	validate.RegisterValidation("email", isUniqueEmail)
-	validate.RegisterValidation("phone", isUniquePhone)
 	errValidate := validate.Struct(userRequest)
 	if errValidate != nil {
 		// Если есть ошибки валидации, выводим их
@@ -542,30 +507,10 @@ func isUniqueEmailFactory(userRequest models.UpdateUserRequest) validator.Func {
 	return func(fl validator.FieldLevel) bool {
 		email := fl.Field().String()
 		var checkUser models.CreateUserRequest
-		err := database.DB.QueryRow("SELECT id, name, email, phone, password FROM users WHERE email = $1 AND id <> $2", email, userRequest.ID).Scan(
+		err := database.DB.QueryRow("SELECT id, name, email, password FROM users WHERE email = $1 AND id <> $2", email, userRequest.ID).Scan(
 			&checkUser.ID,
 			&checkUser.Name,
 			&checkUser.Email,
-			&checkUser.Phone,
-			&checkUser.Password,
-		)
-		if err == sql.ErrNoRows {
-			return true
-		}
-		return false
-	}
-}
-
-// isUniquePhoneFactory создает функцию isUniqueEmail с захваченной переменной
-func isUniquePhoneFactory(userRequest models.UpdateUserRequest) validator.Func {
-	return func(fl validator.FieldLevel) bool {
-		phone := fl.Field().String()
-		var checkUser models.CreateUserRequest
-		err := database.DB.QueryRow("SELECT id, name, email, phone, password FROM users WHERE phone = $1 AND id <> $2", phone, userRequest.ID).Scan(
-			&checkUser.ID,
-			&checkUser.Name,
-			&checkUser.Email,
-			&checkUser.Phone,
 			&checkUser.Password,
 		)
 		if err == sql.ErrNoRows {
@@ -587,7 +532,6 @@ func validateUpdatedAtUserRequest(r *http.Request) (error, *models.UpdateUserReq
 
 	validate := validator.New()
 	validate.RegisterValidation("email", isUniqueEmailFactory(userRequest))
-	validate.RegisterValidation("phone", isUniquePhoneFactory(userRequest))
 
 	errValidate := validate.Struct(userRequest)
 	if errValidate != nil {
@@ -623,8 +567,8 @@ func getNewToken(name string, email string) (string, error) {
 		},
 	}
 
-	jwt_secret := os.Getenv("JWT_SECRET")
-	var secretKey = []byte(jwt_secret)
+	jwtSecret := os.Getenv("JWT_SECRET")
+	var secretKey = []byte(jwtSecret)
 	token := jwt.New(jwt.SigningMethodHS256)
 	token.Claims = claims
 	tokenString, err := token.SignedString(secretKey)
