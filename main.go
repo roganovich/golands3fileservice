@@ -36,11 +36,11 @@ func main() {
 	router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
 	// Участники
-	router.HandleFunc("/api/users", handlers.AuthAdminMiddleware(handlers.GetUsers())).Methods("GET", "OPTIONS")
-	router.HandleFunc("/api/users/{id}", handlers.AuthAdminMiddleware(handlers.GetUser())).Methods("GET", "OPTIONS")
+	router.HandleFunc("/api/users", handlers.AuthAdminMiddleware(handlers.GetUsers())).Methods("GET")
+	router.HandleFunc("/api/users/{id}", handlers.AuthAdminMiddleware(handlers.GetUser())).Methods("GET")
 
 	// Кабинет
-	router.HandleFunc("/api/auth/info", handlers.AuthMiddleware(handlers.InfoUser())).Methods("GET", "OPTIONS")
+	router.HandleFunc("/api/auth/info", handlers.AuthMiddleware(handlers.InfoUser())).Methods("GET")
 	router.HandleFunc("/api/auth/create", handlers.CreateUser()).Methods("POST", "OPTIONS")
 	router.HandleFunc("/api/auth/update", handlers.AuthMiddleware(handlers.UpdateUser())).Methods("PUT", "OPTIONS")
 	router.HandleFunc("/api/auth/login", handlers.Login()).Methods("POST", "OPTIONS")
@@ -48,8 +48,8 @@ func main() {
 
 	// Media
 	router.HandleFunc("/api/files/upload", handlers.AuthMiddleware(handlers.UploadMedia())).Methods("POST", "OPTIONS")
-	router.HandleFunc("/api/files/{id}/view", handlers.AuthAdminMiddleware(handlers.ViewMedia())).Methods("GET", "OPTIONS")
-	router.HandleFunc("/api/files/{id}/download", handlers.AuthMiddleware(handlers.DownloadMedia())).Methods("GET", "OPTIONS")
+	router.HandleFunc("/api/files/{id}/view", handlers.AuthMiddleware(handlers.ViewMedia())).Methods("GET")
+	router.HandleFunc("/api/files/{id}/download", handlers.AuthMiddleware(handlers.DownloadMedia())).Methods("GET")
 
 	log.Fatal(http.ListenAndServe(":8000", handlers.JsonContentTypeMiddleware(router)))
 }

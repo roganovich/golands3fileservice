@@ -19,10 +19,6 @@ func InitMinio() {
 	secretKey := os.Getenv("MINIO_SECRET_KEY")
 	useSSL := os.Getenv("MINIO_USE_SSL") == "true"
 
-	log.Println(endpoint)
-	log.Println(accessKey)
-	log.Println(secretKey)
-	log.Println(useSSL)
 	var err error
 	MinioClient, err = minio.New(endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),

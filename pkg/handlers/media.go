@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 	"strings"
 	"github.com/gorilla/mux"
-	"strconv"
 	"fmt"
 	"github.com/minio/minio-go/v7"
 )
@@ -33,11 +32,10 @@ import (
 func ViewMedia() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
-		fileName, _ := strconv.Atoi(vars["fileName"])
+		fileId, _ := vars["id"]
 		var file models.File
-		err := database.DB.QueryRow("SELECT * FROM files WHERE name = $1", fileName).Scan(
+		err := database.DB.QueryRow("SELECT id, title, filename, extension, size, date_create FROM files WHERE id = $1", fileId).Scan(
 			&file.ID,
-
 			&file.Title,
 			&file.Filename,
 			&file.Extension,
@@ -46,7 +44,8 @@ func ViewMedia() http.HandlerFunc {
 		)
 
 		if  err != nil {
-			log.Println("Ошибка чтения файла", fileName, err.Error())
+			log.Fatalf("Ошибка получения информации о файле %v, %v", fileId, err.Error())
+			return
 		}
 		json.NewEncoder(w).Encode(file)
 	}
@@ -67,10 +66,10 @@ func ViewMedia() http.HandlerFunc {
 func DownloadMedia() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
-		fileName, _ := strconv.Atoi(vars["fileName"])
+		fileId, _ := vars["id"]
 
 		var file models.File
-		err := database.DB.QueryRow("SELECT * FROM files WHERE name = $1", fileName).Scan(
+		err := database.DB.QueryRow("SELECT id, title, filename, extension, size, date_create FROM files WHERE id = $1", fileId).Scan(
 			&file.ID,
 			&file.Title,
 			&file.Filename,
@@ -79,18 +78,19 @@ func DownloadMedia() http.HandlerFunc {
 			&file.DateCreate,
 		)
 		if  err != nil {
-			log.Println("Ошибка в getOneFile", fileName, err.Error())
+			log.Fatalf("Ошибка получения информации о файле %v, %v", fileId, err.Error())
+			return
 		}
 		// Получение файла из MinIO
 		bucketName := os.Getenv("MINIO_ROOT_BUCKET_NAME")
 		object, err := database.MinioClient.GetObject(
 			r.Context(),
 			bucketName,
-			file.Title, // objectKey
+			file.ID.String(),
 			minio.GetObjectOptions{},
 		)
 		if err != nil {
-			http.Error(w, "File download failed", http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Ошибка скачивания файла %v", fileId), http.StatusInternalServerError)
 			return
 		}
 		defer object.Close()
@@ -130,48 +130,18 @@ func UploadMedia() http.HandlerFunc {
 			// Загрузка файла
 			formFile, fileHeader, errFile := r.FormFile("file")
 			if errFile != nil {
-				log.Println("Не удалось прочитать файл")
 				http.Error(w, "Не удалось прочитать файл", http.StatusBadRequest)
 				return
 			}
 			defer formFile.Close()
 
+			// Генерация уникального ключа
 			newUUID := uuid.New()
-			fileName := newUUID.String()
+			fileName := fileHeader.Filename
 			dstPath := filepath.Join("./public/uploads/", fileName)
 			mimeType := getMIMEType(fileHeader.Filename)
 			createdAt := time.Now()
 			fileSize := fileHeader.Size
-			f, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
-			if err != nil {
-				log.Println("Не удалось открыть файл")
-				http.Error(w, "Не удалось открыть файл", http.StatusInternalServerError)
-				return
-			}
-			defer f.Close()
-
-			//fileSize, err := io.Copy(f, formFile)
-			//if err != nil {
-			//	log.Println("Не удалось скопировать файл")
-			//	http.Error(w, "Не удалось скопировать файл", http.StatusInternalServerError)
-			//	return
-			//}
-
-			// Загрузка в MinIO
-			bucketName := os.Getenv("MINIO_ROOT_BUCKET_NAME")
-			_, err = database.MinioClient.PutObject(
-				r.Context(),
-				bucketName,
-				fileName, // objectKey
-				formFile,
-				fileSize,
-				minio.PutObjectOptions{ContentType: fileHeader.Header.Get("Content-Type")},
-			)
-			if err != nil {
-				http.Error(w, "Возникла ошибка при загрузке изображения (#us3)", http.StatusInternalServerError)
-				return
-			}
-
 			// Сохранение метаданных
 			var file models.File
 			file.ID = newUUID
@@ -184,6 +154,21 @@ func UploadMedia() http.HandlerFunc {
 			errInsert := database.DB.QueryRow("INSERT INTO files (id, title, filename, extension, size) VALUES ($1, $2, $3, $4, $5) RETURNING id", file.ID, file.Title, file.Filename, file.Extension, file.Size).Scan(&file.ID)
 			if errInsert != nil {
 				http.Error(w, "Возникла ошибка при добавлении изображении (#i)", http.StatusBadRequest)
+				return
+			}
+
+			// Загрузка в MinIO
+			bucketName := os.Getenv("MINIO_ROOT_BUCKET_NAME")
+			_, err := database.MinioClient.PutObject(
+				r.Context(),
+				bucketName,
+				newUUID.String(), // objectKey
+				formFile,
+				fileSize,
+				minio.PutObjectOptions{ContentType: fileHeader.Header.Get("Content-Type")},
+			)
+			if err != nil {
+				http.Error(w, "Возникла ошибка при загрузке изображения (#us3)", http.StatusInternalServerError)
 				return
 			}
 
