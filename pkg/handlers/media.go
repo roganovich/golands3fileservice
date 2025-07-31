@@ -12,26 +12,95 @@ import (
 	"time"
 	"path/filepath"
 	"strings"
+	"github.com/gorilla/mux"
+	"strconv"
+	"fmt"
+	"github.com/minio/minio-go/v7"
 )
 
-// get team by id
-func getOneFile(fileName string) (error, models.File) {
-	var file models.File
-	err := database.DB.QueryRow("SELECT * FROM files WHERE name = $1", fileName).Scan(
-		&file.ID,
+// @Summary Информация о файле
+// @Description Метод просмотра информации о файлах
+// @Tags Медиафайлы
+// @Accept  json
+// @Produce octet-stream
+// @Param fileName query string true "File name"
+// @Success 200 {file} file
+// @Failure 400 {string} string "Bad Request"
+// @Failure 404 {string} string "Not Found"
+// @Failure 409 {string} string "Conflict (multiple files)"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /api/files/{id}/view [get]
+func ViewMedia() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		fileName, _ := strconv.Atoi(vars["fileName"])
+		var file models.File
+		err := database.DB.QueryRow("SELECT * FROM files WHERE name = $1", fileName).Scan(
+			&file.ID,
 
-		&file.Title,
-		&file.Filename,
-		&file.Extension,
-		&file.Size,
-		&file.DateCreate,
-	)
+			&file.Title,
+			&file.Filename,
+			&file.Extension,
+			&file.Size,
+			&file.DateCreate,
+		)
 
-	if  err != nil {
-		log.Println("Ошибка в getOneFile", fileName, err.Error())
+		if  err != nil {
+			log.Println("Ошибка чтения файла", fileName, err.Error())
+		}
+		json.NewEncoder(w).Encode(file)
 	}
+}
 
-	return err, file
+// @Summary Скачать файл
+// @Description Метод скачивания файлов
+// @Tags Медиафайлы
+// @Accept  json
+// @Produce octet-stream
+// @Param fileName query string true "File name"
+// @Success 200 {file} file
+// @Failure 400 {string} string "Bad Request"
+// @Failure 404 {string} string "Not Found"
+// @Failure 409 {string} string "Conflict (multiple files)"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /api/files/{id}/download [get]
+func DownloadMedia() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		fileName, _ := strconv.Atoi(vars["fileName"])
+
+		var file models.File
+		err := database.DB.QueryRow("SELECT * FROM files WHERE name = $1", fileName).Scan(
+			&file.ID,
+			&file.Title,
+			&file.Filename,
+			&file.Extension,
+			&file.Size,
+			&file.DateCreate,
+		)
+		if  err != nil {
+			log.Println("Ошибка в getOneFile", fileName, err.Error())
+		}
+		// Получение файла из MinIO
+		bucketName := os.Getenv("MINIO_ROOT_BUCKET_NAME")
+		object, err := database.MinioClient.GetObject(
+			r.Context(),
+			bucketName,
+			file.Title, // objectKey
+			minio.GetObjectOptions{},
+		)
+		if err != nil {
+			http.Error(w, "File download failed", http.StatusInternalServerError)
+			return
+		}
+		defer object.Close()
+
+		// Отправка файла
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", file.Title))
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", file.Size))
+		io.Copy(w, object)
+	}
 }
 
 // @Summary Загрузить медиафайл
@@ -44,7 +113,7 @@ func getOneFile(fileName string) (error, models.File) {
 // @Failure 415 {object} models.ErrorResponse
 // @Failure 500 {object} models.ErrorResponse
 // @Router /api/files/upload [post]
-func Upload() http.HandlerFunc {
+func UploadMedia() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodOptions {
 			// Устанавливаем заголовки для CORS
@@ -70,7 +139,9 @@ func Upload() http.HandlerFunc {
 			newUUID := uuid.New()
 			fileName := newUUID.String()
 			dstPath := filepath.Join("./public/uploads/", fileName)
-
+			mimeType := getMIMEType(fileHeader.Filename)
+			createdAt := time.Now()
+			fileSize := fileHeader.Size
 			f, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
 			if err != nil {
 				log.Println("Не удалось открыть файл")
@@ -79,16 +150,29 @@ func Upload() http.HandlerFunc {
 			}
 			defer f.Close()
 
-			fileSize, err := io.Copy(f, formFile)
+			//fileSize, err := io.Copy(f, formFile)
+			//if err != nil {
+			//	log.Println("Не удалось скопировать файл")
+			//	http.Error(w, "Не удалось скопировать файл", http.StatusInternalServerError)
+			//	return
+			//}
+
+			// Загрузка в MinIO
+			bucketName := os.Getenv("MINIO_ROOT_BUCKET_NAME")
+			_, err = database.MinioClient.PutObject(
+				r.Context(),
+				bucketName,
+				fileName, // objectKey
+				formFile,
+				fileSize,
+				minio.PutObjectOptions{ContentType: fileHeader.Header.Get("Content-Type")},
+			)
 			if err != nil {
-				log.Println("Не удалось скопировать файл")
-				http.Error(w, "Не удалось скопировать файл", http.StatusInternalServerError)
+				http.Error(w, "Возникла ошибка при загрузке изображения (#us3)", http.StatusInternalServerError)
 				return
 			}
 
-			createdAt := time.Now()
-			mimeType := getMIMEType(fileHeader.Filename)
-
+			// Сохранение метаданных
 			var file models.File
 			file.ID = newUUID
 			file.Title = fileName

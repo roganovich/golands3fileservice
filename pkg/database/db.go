@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"log"
+	"os"
 	_ "github.com/lib/pq" // Драйвер для PostgreSQL
 )
 
@@ -10,7 +11,9 @@ import (
 var DB *sql.DB
 
 // InitDB - функция для инициализации соединения с базой данных
-func InitDB(dataSourceName string) {
+func InitDB() {
+	dataSourceName := os.Getenv("DATABASE_URL")
+
 	var dbError error
 	DB, dbError = sql.Open("postgres", dataSourceName)
 	if dbError != nil {

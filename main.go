@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"github.com/joho/godotenv"
-	"os"
 	"net/http"
 	"github.com/gorilla/mux"
 	"github.com/swaggo/http-swagger"
@@ -25,10 +24,8 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	// InitDB
-	dataSourceName := os.Getenv("DATABASE_URL")
-	database.InitDB(dataSourceName)
-
+	database.InitDB()
+	database.InitMinio();
 	// Регистрация маршрутов
 	router := mux.NewRouter()
 
@@ -39,8 +36,8 @@ func main() {
 	router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
 	// Участники
-	router.HandleFunc("/api/users", handlers.AuthAdminMiddleware(handlers.GetUsers())).Methods("GET")
-	router.HandleFunc("/api/users/{id}", handlers.AuthAdminMiddleware(handlers.GetUser())).Methods("GET")
+	router.HandleFunc("/api/users", handlers.AuthAdminMiddleware(handlers.GetUsers())).Methods("GET", "OPTIONS")
+	router.HandleFunc("/api/users/{id}", handlers.AuthAdminMiddleware(handlers.GetUser())).Methods("GET", "OPTIONS")
 
 	// Кабинет
 	router.HandleFunc("/api/auth/info", handlers.AuthMiddleware(handlers.InfoUser())).Methods("GET", "OPTIONS")
@@ -50,7 +47,9 @@ func main() {
 	router.HandleFunc("/api/auth/refresh", handlers.AuthMiddleware(handlers.Refresh())).Methods("POST", "OPTIONS")
 
 	// Media
-	router.HandleFunc("/api/files/upload", handlers.AuthMiddleware(handlers.Upload())).Methods("POST", "OPTIONS")
+	router.HandleFunc("/api/files/upload", handlers.AuthMiddleware(handlers.UploadMedia())).Methods("POST", "OPTIONS")
+	router.HandleFunc("/api/files/{id}/view", handlers.AuthAdminMiddleware(handlers.ViewMedia())).Methods("GET", "OPTIONS")
+	router.HandleFunc("/api/files/{id}/download", handlers.AuthMiddleware(handlers.DownloadMedia())).Methods("GET", "OPTIONS")
 
 	log.Fatal(http.ListenAndServe(":8000", handlers.JsonContentTypeMiddleware(router)))
 }
